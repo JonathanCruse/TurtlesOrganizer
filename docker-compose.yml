@@ -1,0 +1,39 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: turtlesorganizer-postgres
+    environment:
+      POSTGRES_DB: turtlesorganizer
+      POSTGRES_USER: turtlesadmin
+      POSTGRES_PASSWORD: TurtlesPass123!
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U turtlesadmin -d turtlesorganizer"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - turtles-network
+
+  turtlesorganizer.web:
+    image: ${DOCKER_REGISTRY-}turtlesorganizerweb
+    container_name: turtlesorganizer-web
+    build:
+      context: .
+      dockerfile: src/TurtlesOrganizer.Web/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - turtles-network
+
+volumes:
+  postgres-data:
+    driver: local
+
+networks:
+  turtles-network:
+    driver: bridge

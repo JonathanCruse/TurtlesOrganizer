@@ -1,0 +1,161 @@
+@page "/trainings/{TrainingId:guid}/sessions/create"
+@using System.ComponentModel.DataAnnotations
+@using TurtlesOrganizer.Application.DTOs
+@using TurtlesOrganizer.Application.Services
+@inject ITrainingSessionService SessionService
+@inject IPersonService PersonService
+@inject NavigationManager Navigation
+
+<PageTitle>Create Training Session</PageTitle>
+
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h3>Create New Session</h3>
+                </div>
+                <div class="card-body">
+                    <EditForm Model="@model" OnValidSubmit="HandleCreate" FormName="CreateSessionForm">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary class="text-danger" />
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Title</label>
+                            <InputText @bind-Value="model.Title" class="form-control" />
+                            <ValidationMessage For="@(() => model.Title)" class="text-danger" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Date & Time</label>
+                            <InputDate Type="InputDateType.DateTimeLocal" @bind-Value="model.DateTime" class="form-control" />
+                            <ValidationMessage For="@(() => model.DateTime)" class="text-danger" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Trainer</label>
+                            <InputSelect @bind-Value="model.TrainerId" class="form-control">
+                                <option value="">Select Trainer</option>
+                                @if (persons != null)
+                                {
+                                    @foreach (var person in persons)
+                                    {
+                                        <option value="@person.Id">@person.FullName</option>
+                                    }
+                                }
+                            </InputSelect>
+                            <ValidationMessage For="@(() => model.TrainerId)" class="text-danger" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Max Attendees</label>
+                            <InputNumber @bind-Value="model.MaxAttendees" class="form-control" />
+                            <ValidationMessage For="@(() => model.MaxAttendees)" class="text-danger" />
+                        </div>
+
+                        @if (!string.IsNullOrEmpty(successMessage))
+                        {
+                            <div class="alert alert-success">
+                                @successMessage
+                                <div class="mt-2">
+                                    <a href="/trainings/@TrainingId" class="btn btn-primary">Back to Training</a>
+                                    <button @onclick="CreateAnother" class="btn btn-secondary">Create Another Session</button>
+                                </div>
+                            </div>
+                        }
+
+                        @if (!string.IsNullOrEmpty(errorMessage))
+                        {
+                            <div class="alert alert-danger">@errorMessage</div>
+                        }
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">Create Session</button>
+                            <a href="/trainings/@TrainingId" class="btn btn-secondary">Cancel</a>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public Guid TrainingId { get; set; }
+
+    [SupplyParameterFromForm]
+    private CreateSessionModel model { get; set; } = new();
+    
+    private IEnumerable<PersonDto>? persons;
+    private string? errorMessage;
+    private string? successMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        persons = await PersonService.GetTrainersAsync();
+        model.DateTime = DateTime.Now.AddDays(1);
+    }
+
+    private async Task HandleCreate()
+    {
+        try
+        {
+            // Validate trainer selection
+            if (string.IsNullOrWhiteSpace(model.TrainerId))
+            {
+                errorMessage = "Please select a trainer";
+                return;
+            }
+
+            if (!Guid.TryParse(model.TrainerId, out Guid trainerId))
+            {
+                errorMessage = "Invalid trainer selection";
+                return;
+            }
+
+            var dto = new CreateTrainingSessionDto(
+                TrainingId,
+                model.Title,
+                model.DateTime,
+                trainerId,
+                model.MaxAttendees
+            );
+            
+            await SessionService.CreateSessionAsync(dto);
+            
+            successMessage = $"Session '{model.Title}' created successfully!";
+            errorMessage = null;
+            
+            // Clear form for next session
+            model = new() { DateTime = DateTime.Now.AddDays(1) };
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+            successMessage = null;
+        }
+    }
+
+    private void CreateAnother()
+    {
+        successMessage = null;
+        errorMessage = null;
+        model = new() { DateTime = DateTime.Now.AddDays(1) };
+    }
+
+    private class CreateSessionModel
+    {
+        [Required(ErrorMessage = "Title is required")]
+        public string Title { get; set; } = "";
+        
+        [Required(ErrorMessage = "Date and time is required")]
+        public DateTime DateTime { get; set; }
+        
+        [Required(ErrorMessage = "Trainer is required")]
+        public string TrainerId { get; set; } = "";
+        
+        [Range(1, 1000, ErrorMessage = "Max attendees must be between 1 and 1000")]
+        public int MaxAttendees { get; set; } = 20;
+    }
+}

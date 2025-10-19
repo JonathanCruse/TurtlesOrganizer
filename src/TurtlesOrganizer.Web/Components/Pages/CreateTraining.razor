@@ -1,0 +1,118 @@
+@page "/trainings/create"
+@using TurtlesOrganizer.Application.DTOs
+@using TurtlesOrganizer.Application.Services
+@inject ITrainingService TrainingService
+@inject ICookieAuthenticationService CookieAuth
+@inject NavigationManager Navigation
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+
+<PageTitle>Create Training</PageTitle>
+
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h3>Create New Training</h3>
+                </div>
+                <div class="card-body">
+                    @if (!string.IsNullOrEmpty(successMessage))
+                    {
+                        <div class="alert alert-success">
+                            @successMessage
+                            <div class="mt-2">
+                                <a href="/trainings" class="btn btn-primary">View All Trainings</a>
+                                <button @onclick="CreateAnother" class="btn btn-secondary">Create Another</button>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <EditForm Model="@model" OnValidSubmit="HandleCreate" FormName="CreateTrainingForm">
+                            <DataAnnotationsValidator />
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Topic</label>
+                                <InputText @bind-Value="model.Topic" class="form-control" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Description</label>
+                                <InputTextArea @bind-Value="model.Description" class="form-control" rows="4" />
+                            </div>
+
+                            @if (!string.IsNullOrEmpty(errorMessage))
+                            {
+                                <div class="alert alert-danger">@errorMessage</div>
+                            }
+
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-primary">Create Training</button>
+                                <a href="/trainings" class="btn btn-secondary">Cancel</a>
+                            </div>
+                        </EditForm>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthState { get; set; }
+    
+    [SupplyParameterFromForm]
+    private CreateTrainingModel model { get; set; } = new();
+    
+    private string? errorMessage;
+    private string? successMessage;
+    private Guid? createdTrainingId;
+
+    private async Task HandleCreate()
+    {
+        try
+        {
+            Guid? userId = null;
+            if (AuthState != null)
+            {
+                var authState = await AuthState;
+                userId = CookieAuth.GetCurrentUserId(authState.User);
+            }
+            
+            if (userId == null)
+            {
+                errorMessage = "You must be logged in to create a training";
+                return;
+            }
+            
+            var dto = new CreateTrainingDto(model.Topic, model.Description);
+            var training = await TrainingService.CreateTrainingAsync(dto, userId.Value);
+            
+            createdTrainingId = training.Id;
+            successMessage = $"Training '{training.Topic}' created successfully!";
+            errorMessage = null;
+            
+            // Clear form
+            model = new();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+            successMessage = null;
+        }
+    }
+
+    private void CreateAnother()
+    {
+        successMessage = null;
+        errorMessage = null;
+        model = new();
+    }
+
+    private class CreateTrainingModel
+    {
+        public string Topic { get; set; } = "";
+        public string? Description { get; set; }
+    }
+}

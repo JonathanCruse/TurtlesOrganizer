@@ -1,0 +1,71 @@
+﻿@using Microsoft.AspNetCore.Components.Authorization
+@inject AuthenticationStateProvider AuthStateProvider
+
+<div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="">Turtles Organizer</a>
+        <div class="ms-auto text-white">
+            <AuthorizeView>
+                <Authorized>
+                    <span class="me-2">👤 @context.User.Identity?.Name</span>
+                    <button class="btn btn-sm btn-outline-light" @onclick="Logout">Logout</button>
+                </Authorized>
+                <NotAuthorized>
+                    <span class="text-muted">Not logged in</span>
+                </NotAuthorized>
+            </AuthorizeView>
+        </div>
+    </div>
+</div>
+
+<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+
+<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
+    <nav class="nav flex-column">
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="trainings">
+                <span class="bi bi-book-nav-menu" aria-hidden="true"></span> Trainings
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="admin/manage-trainers">
+                <span class="bi bi-people-nav-menu" aria-hidden="true"></span> Manage Trainers
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="register">
+                <span class="bi bi-person-plus-nav-menu" aria-hidden="true"></span> Register
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="login">
+                <span class="bi bi-box-arrow-in-right-nav-menu" aria-hidden="true"></span> Login
+            </NavLink>
+        </div>
+    </nav>
+</div>
+
+@code {
+    [Inject] private NavigationManager Navigation { get; set; } = default!;
+    [Inject] private ICookieAuthenticationService CookieAuth { get; set; } = default!;
+    [Inject] private IHttpContextAccessor HttpContextAccessor { get; set; } = default!;
+
+    private async Task Logout()
+    {
+        var httpContext = HttpContextAccessor.HttpContext;
+        if (httpContext != null)
+        {
+            await CookieAuth.SignOutAsync(httpContext);
+            httpContext.Response.Redirect("/", false);
+        }
+    }
+}

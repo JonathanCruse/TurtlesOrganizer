@@ -1,0 +1,92 @@
+@page "/trainings/{TrainingId:guid}"
+@using TurtlesOrganizer.Application.DTOs
+@using TurtlesOrganizer.Application.Services
+@inject ITrainingService TrainingService
+@inject NavigationManager Navigation
+
+<PageTitle>Training Details</PageTitle>
+
+<div class="container mt-4">
+    @if (training == null)
+    {
+        <p><em>Loading...</em></p>
+    }
+    else
+    {
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>@training.Topic</h2>
+            <a href="/trainings/@training.Id/sessions/create" class="btn btn-primary">Add Session</a>
+        </div>
+
+        @if (!string.IsNullOrEmpty(training.Description))
+        {
+            <div class="card mb-4">
+                <div class="card-body">
+                    <p>@training.Description</p>
+                    <p class="text-muted mb-0">Created: @training.CreatedAt.ToString("yyyy-MM-dd")</p>
+                </div>
+            </div>
+        }
+
+        <h3>Training Sessions</h3>
+        @if (!training.Sessions.Any())
+        {
+            <div class="alert alert-info">
+                No sessions scheduled yet. Add your first session!
+            </div>
+        }
+        else
+        {
+            <div class="list-group">
+                @foreach (var session in training.Sessions.OrderBy(s => s.Date))
+                {
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h5 class="mb-1">@session.Title</h5>
+                                <p class="mb-1">
+                                    <strong>Date:</strong> @session.Date.ToString("yyyy-MM-dd HH:mm")
+                                </p>
+                                <p class="mb-1">
+                                    <strong>Capacity:</strong> @session.CurrentAttendees / @session.MaxAttendees
+                                    (@session.AvailableSpots spots available)
+                                </p>
+                            </div>
+                            <div>
+                                @if (session.IsFull)
+                                {
+                                    <span class="badge bg-danger">Full</span>
+                                }
+                                else if (session.IsUpcoming)
+                                {
+                                    <span class="badge bg-success">Open</span>
+                                    <a href="/sessions/@session.Id/register" class="btn btn-sm btn-primary ms-2">Register</a>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary">Past</span>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+
+        <div class="mt-4">
+            <a href="/trainings" class="btn btn-secondary">Back to Trainings</a>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public Guid TrainingId { get; set; }
+
+    private TrainingWithSessionsDto? training;
+
+    protected override async Task OnInitializedAsync()
+    {
+        training = await TrainingService.GetTrainingByIdAsync(TrainingId);
+    }
+}
